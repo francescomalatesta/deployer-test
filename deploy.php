@@ -3,38 +3,39 @@ namespace Deployer;
 
 require 'recipe/laravel.php';
 
-// Project name
 set('application', 'deployer.prod');
 
-// Project repository
-set('repository', '');
+set('repository', 'git@github.com:francescomalatesta/deployer-test.git');
 
-// [Optional] Allocate tty for git clone. Default value is false.
-set('git_tty', true); 
+set('git_tty', true);
 
-// Shared files/dirs between deploys 
-add('shared_files', []);
-add('shared_dirs', []);
-
-// Writable dirs by web server 
-add('writable_dirs', []);
 set('allow_anonymous_stats', false);
 
-// Hosts
+set('dotenv_path', '{{release_path}}/.env');
 
-host('139.59.149.140')
-    ->set('deploy_path', '~/{{application}}');    
-    
-// Tasks
+host('deployer.prod')
+    ->user('forge')
+    ->forwardAgent()
+    ->set('deploy_path', '~/{{application}}');
 
 task('build', function () {
     run('cd {{release_path}} && build');
 });
 
+task('dotenv:upload', function () {
+    $src = "shared/.env";
+    if (!file_exists($src)) {
+        throw new \Exception("File not found: $src");
+    }
+
+    $dest = '{{dotenv_path}}';
+    upload($src, $dest);
+});
+
 // [Optional] if deploy fails automatically unlock.
 after('deploy:failed', 'deploy:unlock');
 
-// Migrate database before symlink new release.
 
 before('deploy:symlink', 'artisan:migrate');
 
+before('artisan:config:cache', 'dotenv:upload');
